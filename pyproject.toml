@@ -1,0 +1,6 @@
+[project]
+name = "river-observation-lake"
+version = "1.0.0"
+description = "Offline fixed-snapshot observation lake"
+requires-python = ">=3.11"
+dependencies = []

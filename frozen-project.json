@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "product": "river-observation-lake",
+  "catalog_schema": 1,
+  "batch_digest": 1,
+  "ordinary_codec": 1,
+  "product_format": 1,
+  "encoding": "UTF-8",
+  "time_interval": "[start,end)",
+  "record_order": ["station", "time", "record_id", "snapshot_member_ordinal"],
+  "export_fields": ["record_id", "station", "time", "value"],
+  "sample_loading": "explicit",
+  "initialization": "create missing current-version tables; never reset business data"
+}

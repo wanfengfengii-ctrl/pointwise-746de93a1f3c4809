@@ -1,0 +1,12 @@
+{
+  "runtime": ".pointwise-runtime.json",
+  "regressions": [
+    ["python3.11", "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
+    ["python3.11", "-B", "-m", "unittest", "tests.test_intake.TestIntake.test_normalize_and_replay", "tests.test_intake.TestIntake.test_digest_boundaries", "tests.test_intake.TestIntake.test_empty_batch_and_source_failure", "-v"],
+    ["python3.11", "-B", "-m", "unittest", "tests.test_intake.TestIntake.test_reject_whole_batch", "tests.test_catalog.TestCatalog.test_atomic_snapshot_failure", "tests.test_catalog.TestCatalog.test_member_validation", "tests.test_catalog.TestCatalog.test_repeat_initialization_and_version", "-v"],
+    ["python3.11", "-B", "-m", "unittest", "tests.test_reading", "tests.test_products.TestProducts.test_exact_station_summary", "tests.test_products.TestProducts.test_unbounded_integer_roundtrip", "-v"],
+    ["python3.11", "-B", "-m", "unittest", "tests.test_catalog.TestCatalog.test_failed_object_write", "tests.test_catalog.TestCatalog.test_existing_object_is_immutable", "tests.test_products.TestProducts.test_fixed_product_reopen", "tests.test_products.TestProducts.test_export_bytes_and_empty_results", "tests.test_failures", "-v"]
+  ],
+  "sample": "samples.json",
+  "sample_case": "v7.saved_binding"
+}

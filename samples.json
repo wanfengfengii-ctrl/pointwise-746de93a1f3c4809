@@ -1,0 +1,25 @@
+{
+  "batches": {
+    "B1": [
+      ["a2", "芦苇站", 20, 0],
+      ["a1", "芦苇站", 10, 9007199254740993],
+      ["b1", "桥站", 10, -5]
+    ],
+    "B2": [
+      ["a1", "芦苇站", 10, 9007199254740993],
+      ["a3", "芦苇站", 15, -9007199254740993],
+      ["b2", "桥站", 19, 5]
+    ]
+  },
+  "expected_summary": [
+    {"station": "桥站", "count": 2, "sum": 0, "first_time": 10, "last_time": 19},
+    {"station": "芦苇站", "count": 3, "sum": 9007199254740993, "first_time": 10, "last_time": 15}
+  ],
+  "expected_records": [
+    {"record_id": "b1", "station": "桥站", "time": 10, "value": -5},
+    {"record_id": "b2", "station": "桥站", "time": 19, "value": 5},
+    {"record_id": "a1", "station": "芦苇站", "time": 10, "value": 9007199254740993},
+    {"record_id": "a1", "station": "芦苇站", "time": 10, "value": 9007199254740993},
+    {"record_id": "a3", "station": "芦苇站", "time": 15, "value": -9007199254740993}
+  ]
+}
