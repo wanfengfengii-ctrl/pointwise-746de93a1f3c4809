@@ -50,6 +50,11 @@ accept_batch 返回不可变 BatchBinding，字段为 batch_id、digest、segmen
 
 publish_snapshot 返回固定字符串 ID。成员必须存在且无重复，顺序保留。空批次、空快照均合法。快照复制确切段描述；历史读取不重新选择批次或当前指针。
 
+publish_coded(batch_id) 把单个已接纳批次发布为含固定 snapshot_id 的编码快照并推进当前指针，返回只含该批次的 ID；非法或未知 ID 抛 ValueError。发布先完整验证绑定普通段，再把其确切字节编成五片三取三码（总载荷不超过 5·⌈L/3⌉，每片等长且不超过 ⌈L/3⌉）。只有至少三片以期望身份确认并读回核验成功才提交，否则抛 Unavailable 并保持原快照、成员及批次绑定；重复调用可产生不同快照。编码描述含 kind=coded、original（原普通描述完整映射，其 object_id 仅用于核对、不是回退读取位置）、layout（版本、原长、原段摘要及分片解释）和按 index 排序的五项 shards（index、object_id、sha256、byte_length、payload_length）。元数据与分片头只含解释与完整性信息，不夹带观测记录或原文。
+
+读取编码快照时每次都重新排除缺失、OSError、截短、同长损坏或同段同位替换的分片；至少三片有效即恢复并核对原长、原段摘要、普通格式、记录数与统计，不足三片抛 Unavailable，绝不回退读取原普通对象（原对象可保留供普通快照使用）。编码读取不会用原批次内容重新编码来绕过缺失分片。
+
+
 read 返回 Record 列表，按 station、time、record_id、快照成员序号排序。station 为 None 或非空字符串，start/end 为非布尔整数且 start <= end。包含 start、排除 end。统计仅安全排除确定不相交段；被裁剪对象无需读取。任何必要对象必须先完整校验长度、SHA-256，再解码并核对格式、记录数及统计，即使请求只命中其中一条。未知快照、非法请求抛 ValueError；必要对象缺失、损坏或解码失败抛 Unavailable，绝不返回前缀列表。
 
 summarize 和 export_product 返回不可变 SavedProduct，包含 product_id、request、summary、export_bytes。request 固定 kind、snapshot_id、station、start、end。summary 为按站点排序的 SummaryRow 元组，导出成果的 summary 为空；汇总成果的 export_bytes 为空。整数和任意精度计算，非空零和组保留，空结果无分组。为兑现无十进制位数上限的整数契约，包初始化在支持该功能的 Python 上将进程的 int 字符串转换位数上限设为 0。
@@ -58,7 +63,14 @@ summarize 和 export_product 返回不可变 SavedProduct，包含 product_id、
 
 ## 持久化及错误
 
-工作目录包含 catalog.sqlite3 和 objects/。数据库记录批次绑定、快照、当前指针及成果 BLOB；普通段是单个内容寻址不可变对象。业务身份不拼入文件路径。相同对象字节可复用，已有对象损坏不得覆盖。ObjectWriteResult 明确报告成功或失败；失败不登记批次，真实 I/O 异常不吞掉。
+工作目录包含 catalog.sqlite3 和 objects/。数据库记录批次绑定、快照、当前指针及成果 BLOB；普通段是单个内容寻址不可变对象，编码段的五个分片也各是一个内容寻址不可变对象。业务身份不拼入文件路径。相同对象字节可复用，已有对象损坏不得覆盖。ObjectWriteResult 明确报告成功或失败；失败不登记批次，真实 I/O 异常不吞掉。
+
+## 编码表示不变量
+
+- 五片始终按 0～4 独立寻址，载荷相同的分片仍是不同物理对象；分片头绑定片序、编码版本、原长、原段摘要与布局摘要，仅凭片序或文件存在不能取得输入资格。
+- 编码布局记录原长、原段 SHA-256 及自己的摘要；恢复时按原长截断填充，填充不进入任何记录，恢复字节须逐字节等于原普通段。
+- 快照按描述固定五片身份与解释，不把首次发布成功数当永久读取资格；每次读取重新核验物理片身份、长度和摘要，失败资格不缓存，来源恢复后可重读。
+- 发布与读取双侧共用同一 codec：发布写分片并核对写回，读取排除不可用分片后交给解码器；两侧都以原段描述作为最终验收，任一侧都不能跳过完整校验。
 
 快照成员和当前指针同事务提交；成果在全部源读取、计算、序列化完成后一次提交。失败无部分新快照或成果，已有成果保持。提交钩子支持确定性边界故障，测试使用真实 SQLite 和真实文件；不要求杀进程恢复或并发发布。未引用对象可留存，本版不回收。
 
@@ -68,14 +80,17 @@ summarize 和 export_product 返回不可变 SavedProduct，包含 product_id、
 
 samples.json 的 [B1,B2] 在 [10,20) 内有五条观测。桥站两条合计 0，首末时间 10/19；芦苇站三条合计 9007199254740993，首末 10/15。两条 a1 均保留，a2@20 排除。演示将实际导出解码后与独立样例逐条核对，并在当前快照变化后重开验证旧成果。
 
+编码回归见 tests/test_coded.py：字节入口任意三、四、五片精确还原与两片拒绝，五、三、二份确认对应的发布可读/可读/拒绝，全部十种三片组合逐字节等同普通导出，删损重开、错段同位替换排除、裁剪不读片及失败不产出部分成果。coded_examples.py 的 check 核对新增能力，verify 先跑完整原回归再核对，demo 展示真实降级交付。
+
 五个测试文件覆盖接纳与摘要边界、写入失败及不可变对象冲突、三处快照回滚边界、固定历史、时间裁剪与不裁剪逐条参照、编解码、精确整数、导出转义、保存成果重开、必要对象删除/截断/同长篡改、摘要匹配的非法段、后续成员失败和成果提交失败。完整 discover 始终保留。
 
 ## 源码职责
 
 - 接纳：intake、validation、normalization、batch_digest、record_model、batch_registry。
 - 普通段：segment_writer、segment_codec、segment_stats、segment_descriptor、object_store。
+- 编码段：segment_codec（五取三字节编解码与分片封装）、segment_descriptor（coded 描述及写片）、coded_publish。
 - 固定目录：catalog、catalog_schema、snapshot_commit。
 - 读取：snapshot_reader、segment_reader、range_scan、integrity、scan_request。
 - 成果：aggregation、export、product_model、product_store、product_service。
 
-frozen-project.json 记录当前公开格式与排序口径。所有 24 个业务模块由上述实际流程调用。
+frozen-project.json 记录当前公开格式与排序口径。全部 25 个业务模块（原 24 个加编码发布）均由上述实际流程调用。

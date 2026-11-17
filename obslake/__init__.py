@@ -29,6 +29,9 @@ class Lake:
     def publish_snapshot(self, batch_ids):
         return self.catalog.publish_snapshot(batch_ids)
 
+    def publish_coded(self, batch_id):
+        return self.catalog.publish_coded(batch_id)
+
     def read(self, snapshot_id, station, start, end):
         return self.reader.read(snapshot_id, station, start, end)
 

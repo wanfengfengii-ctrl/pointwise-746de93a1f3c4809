@@ -63,6 +63,10 @@ class Catalog:
             reader.read_segment(binding.segment)
         return self.committer.commit_snapshot(bindings)
 
+    def publish_coded(self, batch_id):
+        from .coded_publish import CodedPublisher
+        return CodedPublisher(self).publish_coded(batch_id)
+
     def load_snapshot(self, snapshot_id):
         require_text(snapshot_id, "snapshot_id")
         if self.connection.execute("SELECT 1 FROM snapshots WHERE snapshot_id=?", (snapshot_id,)).fetchone() is None:
